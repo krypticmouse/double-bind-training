@@ -776,6 +776,14 @@ if __name__ == "__main__":
     main()
 
 '''
+export MAX_LENGTH=164
+export BERT_MODEL=xlm-roberta-base
+export OUTPUT_DIR=yo_sample
+export BATCH_SIZE=32
+export NUM_EPOCHS=50
+export SAVE_STEPS=10000
+export SEED=1
+
 CUDA_VISIBLE_DEVICES=1 python3 train_ner_adapter.py --data_dir conll_format/yoruba/ \
 --model_type bert \
 --model_name_or_path $ADAPTER_MODEL \
