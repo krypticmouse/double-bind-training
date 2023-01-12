@@ -54,13 +54,13 @@ logger = logging.getLogger(__name__)
 wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner")
 
 wandb.config = {
-  "max length": os.getenv('MAX_LENGTH'),
-  "adapter model": os.getenv('BERT_MODEL'),
-  "output dir": os.getenv('OUTPUT_DIR'),
-  "batch size": os.getenv('BATCH_SIZE'),
-  "epochs": os.getenv('NUM_EPOCHS'),
-  "save steps": os.getenv('SAVE_STEPS'),
-  "seed": os.getenv('SEED'),
+    "max length": os.getenv('MAX_LENGTH'),
+    "adapter model": os.getenv('BERT_MODEL'),
+    "output dir": os.getenv('OUTPUT_DIR'),
+    "batch size": os.getenv('BATCH_SIZE'),
+    "epochs": os.getenv('NUM_EPOCHS'),
+    "save steps": os.getenv('SAVE_STEPS'),
+    "seed": os.getenv('SEED'),
 }
 
 MODEL_CLASSES = {
@@ -777,7 +777,7 @@ if __name__ == "__main__":
 
 '''
 export MAX_LENGTH=164
-export BERT_MODEL=xlm-roberta-base
+export ADAPTER_MODEL=xlm-roberta-base
 export OUTPUT_DIR=yo_sample
 export BATCH_SIZE=32
 export NUM_EPOCHS=50
