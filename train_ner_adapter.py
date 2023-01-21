@@ -53,7 +53,7 @@ from torch.utils.data import DataLoader
 
 
 logger = logging.getLogger(__name__)
-wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner")
+wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=["dev"])
 
 wandb.config = {
     "max length": os.getenv('MAX_LENGTH'),
@@ -79,8 +79,6 @@ def set_seed(args):
     torch.manual_seed(args.seed)
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
-
-
 
 def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     model.set_active_adapters([["ner"]])
@@ -125,18 +123,18 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
 
     # Train!
-    logger.info("***** Running training *****")
-    logger.info("  Num examples = %d", len(train_dataset))
-    logger.info("  Num Epochs = %d", args.num_train_epochs)
-    logger.info("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
-    logger.info(
-        "  Total train batch size (w. parallel, distributed & accumulation) = %d",
+    print("***** Running training *****")
+    print("  Num examples = ", len(train_dataset))
+    print("  Num Epochs = ", args.num_train_epochs)
+    print("  Instantaneous batch size per GPU = ", args.per_gpu_train_batch_size)
+    print(
+        "  Total train batch size (w. parallel, distributed & accumulation) = ",
         args.train_batch_size
         * args.gradient_accumulation_steps
         * (1),
     )
-    logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
-    logger.info("  Total optimization steps = %d", t_total)
+    print("  Gradient Accumulation steps = ", args.gradient_accumulation_steps)
+    print("  Total optimization steps = ", t_total)
 
     global_step = 0
     epochs_trained = 0
@@ -151,10 +149,10 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
         epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
         steps_trained_in_current_epoch = global_step % (len(train_dataloader) // args.gradient_accumulation_steps)
 
-        logger.info("  Continuing training from checkpoint, will skip to saved global_step")
-        logger.info("  Continuing training from epoch %d", epochs_trained)
-        logger.info("  Continuing training from global step %d", global_step)
-        logger.info("  Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+        print("  Continuing training from checkpoint, will skip to saved global_step")
+        print("  Continuing training from epoch", epochs_trained)
+        print("  Continuing training from global step", global_step)
+        print(f"  Will skip the first {steps_trained_in_current_epoch} steps in the first epoch")
 
     tr_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
@@ -195,11 +193,12 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             loss.backward()
 
             tr_loss += loss.item()
+
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-
-                scheduler.step()  # Update learning rate schedule
+                
                 optimizer.step()
+                scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
 
@@ -211,10 +210,6 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                         results, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev")
                         for key, value in results.items():
                             wandb.log({f"eval_{key}": value})
-                    wandb.log({
-                        f"lr": scheduler.get_lr()[0],
-                        f"loss": (tr_loss - logging_loss) / args.logging_steps
-                    })
                     logging_loss = tr_loss
 
                 if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
@@ -233,15 +228,23 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                     # Good practice: save your training arguments together with the trained model
                     torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
-                    logger.info("Saving model checkpoint to %s", output_dir)
+                    logger.info("Saving model checkpoint to ", output_dir)
 
                     torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                     torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
-                    logger.info("Saving optimizer and scheduler states to %s", output_dir)
+                    print("Saving optimizer and scheduler states to", output_dir)
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
+        
+
+        wandb.log({
+            f"lr": scheduler.get_lr()[0],
+            f"train_loss": tr_loss / args.logging_steps
+        })
+
+        print("training loss", tr_loss / args.logging_steps)
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
@@ -329,11 +332,11 @@ def evaluate(args, bert_model, model, tokenizer, labels, pad_token_label_id, mod
                 preds_list[i].append(label_map[preds[i][j]])
 
     results = {
-        "loss": eval_loss,
-        "precision": precision_score(out_label_list, preds_list),
-        "recall": recall_score(out_label_list, preds_list),
-        "f1": f1_score(out_label_list, preds_list),
-        'report': classification_report(out_label_list, preds_list),
+        "eval_loss": eval_loss,
+        "eval_precision": precision_score(out_label_list, preds_list),
+        "eval_recall": recall_score(out_label_list, preds_list),
+        "eval_f1": f1_score(out_label_list, preds_list),
+        'eval_report': classification_report(out_label_list, preds_list),
     }
 
     wandb.log(results)
