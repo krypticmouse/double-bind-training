@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_MASKED_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
-wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=["dev"])
+wandb.init(project="training-lm-test-run", entity="double-bind-ner", tags=["dev"])
 
 @dataclass
 class ModelArguments:
