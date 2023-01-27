@@ -531,12 +531,12 @@ def main():
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
     parser.add_argument("--server_ip", type=str, default="", help="For distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
-    parser.add_argument("--language", type=str, default="", help="Set the tag for wandb project run.")
+    parser.add_argument("--dataset_language", type=str, default="", help="Set the tag for wandb project run.")
     parser.add_argument("--path_to_adapter", type=str, help="Directory containing path to adapter.")
 
     args = parser.parse_args()
     
-    wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=[args.language])
+    wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=[args.dataset_language])
 
     wandb.config = {
         "max length": os.getenv('MAX_LENGTH'),
