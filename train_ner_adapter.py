@@ -53,17 +53,6 @@ from torch.utils.data import DataLoader
 
 
 logger = logging.getLogger(__name__)
-wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=["dev"])
-
-wandb.config = {
-    "max length": os.getenv('MAX_LENGTH'),
-    "adapter model": os.getenv('BERT_MODEL'),
-    "output dir": os.getenv('OUTPUT_DIR'),
-    "batch size": os.getenv('BATCH_SIZE'),
-    "epochs": os.getenv('NUM_EPOCHS'),
-    "save steps": os.getenv('SAVE_STEPS'),
-    "seed": os.getenv('SEED'),
-}
 
 MODEL_CLASSES = {
     "bert": "",
@@ -80,9 +69,9 @@ def set_seed(args):
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
 
-def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
-    model.set_active_adapters([["ner"]])
-    model.train_adapter(["ner"])
+def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, adapter_name):
+    model.set_active_adapters(adapter_name)
+    model.train_adapter(adapter_name)
     """ Train the model """
     loss_fct = torch.nn.CrossEntropyLoss()
 
@@ -252,8 +241,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     return global_step, tr_loss / global_step
 
 
-def evaluate(args, bert_model, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
-    bert_model.set_active_adapters([["ner"]])
+def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
+    model.set_active_adapters([["ner"]])
     eval_dataset = load_and_cache_examples(args, tokenizer, labels, pad_token_label_id, mode=mode)
 
     loss_fct = torch.nn.CrossEntropyLoss()
@@ -289,7 +278,7 @@ def evaluate(args, bert_model, model, tokenizer, labels, pad_token_label_id, mod
             #tmp_eval_loss, logits = outputs[:2]
 
 
-            hs = bert_model(inputs["input_ids"], attention_mask=inputs["attention_mask"], output_hidden_states=True)
+            hs = model(inputs["input_ids"], attention_mask=inputs["attention_mask"], output_hidden_states=True)
 
             avg_emb = 0
             for layer in range(1, len(hs.hidden_states)):
@@ -542,9 +531,22 @@ def main():
     parser.add_argument("--local_rank", type=int, default=-1, help="For distributed training: local_rank")
     parser.add_argument("--server_ip", type=str, default="", help="For distant debugging.")
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
-
+    parser.add_argument("--language", type=str, default="", help="Set the tag for wandb project run.")
+    parser.add_argument("--path_to_adapter", type=str, help="Directory containing path to adapter.")
 
     args = parser.parse_args()
+    
+    wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=[args.language])
+
+    wandb.config = {
+        "max length": os.getenv('MAX_LENGTH'),
+        "adapter model": os.getenv('BERT_MODEL'),
+        "output dir": os.getenv('OUTPUT_DIR'),
+        "batch size": os.getenv('BATCH_SIZE'),
+        "epochs": os.getenv('NUM_EPOCHS'),
+        "save steps": os.getenv('SAVE_STEPS'),
+        "seed": os.getenv('SEED'),
+    }
 
     if (
         os.path.exists(args.output_dir)
@@ -605,7 +607,7 @@ def main():
     config_class, model_class, tokenizer_class = AutoConfig, AutoAdapterModel, AutoTokenizer #MODEL_CLASSES[args.model_type]
     
     model = model_class.from_pretrained(args.model_name_or_path)
-    model.add_adapter("ner")
+    adapter_name = model.load_adapter(args.path_to_adapter)
 
     model.add_tagging_head("ner_head", num_labels=len(labels))
 
@@ -626,7 +628,7 @@ def main():
     if args.do_train:
         train_dataset = load_and_cache_examples(args, tokenizer, labels, pad_token_label_id, mode="train")
         #train_dataset = load_examples(args, mode="train")
-        global_step, tr_loss = train(args, train_dataset, model, tokenizer, labels, pad_token_label_id)
+        global_step, tr_loss = train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, adapter_name)
         #global_step, tr_loss = train_ner(args, train_dataset, model, tokenizer, labels, pad_token_label_id)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 

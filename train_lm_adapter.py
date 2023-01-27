@@ -64,8 +64,6 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_MASKED_LM_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
-wandb.init(project="training-lm-test-run", entity="double-bind-ner", tags=["dev"])
-
 @dataclass
 class ModelArguments:
     """
@@ -201,6 +199,15 @@ class DataTrainingArguments:
             )
         },
     )
+    dataset_language: Optional[str] = field(
+        default=None,
+        metadata={
+            "help": (
+                "Set the tag for wandb project run"
+                "value if set."
+            )
+        },
+    )
 
     def __post_init__(self):
         if self.dataset_name is None and self.train_file is None and self.validation_file is None:
@@ -230,6 +237,8 @@ def main():
         )
     else:
         model_args, data_args, training_args, adapter_args = parser.parse_args_into_dataclasses()
+
+    wandb.init(project="training-lm-test-run", entity="double-bind-ner", tags=[data_args.dataset_language])
 
     # Setup logging
     logging.basicConfig(
@@ -614,7 +623,8 @@ def main():
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
-        trainer.save_model()  # Saves the tokenizer too for easy upload
+
+        trainer.save_adapter(training_args.output_dir, task_name)  # Saves the tokenizer too for easy upload
         metrics = train_result.metrics
 
         max_train_samples = (

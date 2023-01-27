@@ -10,6 +10,7 @@ seqeval = "*"
 ptvsd = "*"
 tqdm = "*"
 wandb = "*"
+datasets = "*"
 
 [dev-packages]
 
