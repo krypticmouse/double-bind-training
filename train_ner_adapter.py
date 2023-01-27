@@ -216,7 +216,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, ada
                     # Good practice: save your training arguments together with the trained model
                     torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
-                    logger.info("Saving model checkpoint to ", output_dir)
+                    print("Saving model checkpoint to ", output_dir)
 
                     torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                     torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
@@ -255,13 +255,14 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
         model = torch.nn.DataParallel(model)
 
     # Eval!
-    logger.info("***** Running evaluation %s *****", prefix)
-    logger.info("  Num examples = %d", len(eval_dataset))
-    logger.info("  Batch size = %d", args.eval_batch_size)
+    print(f"***** Running evaluation {prefix} *****")
+    print("  Num examples =", len(eval_dataset))
+    print("  Batch size =", args.eval_batch_size)
     eval_loss = 0.0
     nb_eval_steps = 0
     preds = None
     out_label_ids = None
+
     model.eval()
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
         batch = tuple(t.to(args.device) for t in batch)
@@ -328,9 +329,9 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
 
     wandb.log(results)
 
-    logger.info("***** Eval results %s *****", prefix)
+    print(f"***** Eval results {prefix} *****")
     for key in sorted(results.keys()):
-        logger.info("  %s = %s", key, str(results[key]))
+        print(f"{key} = {str(results[key])}")
 
     return results, preds_list
 
@@ -346,10 +347,10 @@ def load_and_cache_examples(args, tokenizer, labels, pad_token_label_id, mode):
         ),
     )
     if os.path.exists(cached_features_file) and not args.overwrite_cache:
-        logger.info("Loading features from cached file %s", cached_features_file)
+        print("Loading features from cached file", cached_features_file)
         features = torch.load(cached_features_file)
     else:
-        logger.info("Creating features from dataset file at %s", args.data_dir)
+        print("Creating features from dataset file at", args.data_dir)
         examples = read_examples_from_file(args.data_dir, mode)
         features = convert_examples_to_features(
             examples,
@@ -370,7 +371,7 @@ def load_and_cache_examples(args, tokenizer, labels, pad_token_label_id, mode):
             pad_token_label_id=pad_token_label_id,
         )
         if args.local_rank in [-1, 0]:
-            logger.info("Saving features into cached file %s", cached_features_file)
+            print("Saving features into cached file", cached_features_file)
             torch.save(features, cached_features_file)
 
     if args.local_rank == 0 and not evaluate:
@@ -621,7 +622,7 @@ def main():
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 
     model.to(args.device)
-    logger.info("Training/evaluation parameters %s", args)
+    print("Training/evaluation parameters", args)
 
     # Training
     if args.do_train:
@@ -629,7 +630,7 @@ def main():
         #train_dataset = load_examples(args, mode="train")
         global_step, tr_loss = train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, adapter_name)
         #global_step, tr_loss = train_ner(args, train_dataset, model, tokenizer, labels, pad_token_label_id)
-        logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
+        print(f" global_step = {global_step}, average loss = {tr_loss}")
 
     # Fine-tuning
     if args.do_finetune:
@@ -642,7 +643,7 @@ def main():
         # train_dataset = load_examples(args, mode="train")
         global_step, tr_loss = train(args, train_dataset, model, tokenizer, labels, pad_token_label_id)
         # global_step, tr_loss = train_ner(args, train_dataset, model, tokenizer, labels, pad_token_label_id)
-        logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
+        print(f" global_step = {global_step}, average loss = {tr_loss}")
 
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
     if (args.do_train or args.do_finetune) and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
@@ -650,7 +651,7 @@ def main():
         if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(args.output_dir)
 
-        logger.info("Saving model checkpoint to %s", args.output_dir)
+        print("Saving model checkpoint to", args.output_dir)
         # Save a trained model, configuration and tokenizer using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
 
@@ -658,16 +659,11 @@ def main():
             model.module if hasattr(model, "module") else model
         )  # Take care of distributed/parallel training
 
-        bert_model_to_save = (
-            bert_model.module if hasattr(bert_model, "module") else bert_model
-        )
-
-        bert_model_to_save.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
+        model_to_save.save_pretrained(args.output_dir)
 
         # Good practice: save your training arguments together with the trained model
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
-        torch.save(model_to_save.state_dict(), os.path.join(args.output_dir, "bert_lstm.model"))
 
     # Evaluation
     results = {}
@@ -679,14 +675,14 @@ def main():
                 os.path.dirname(c) for c in sorted(glob.glob(args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True))
             )
             logging.getLogger("pytorch_transformers.modeling_utils").setLevel(logging.WARN)  # Reduce logging
-        logger.info("Evaluate the following checkpoints: %s", checkpoints)
+        print("Evaluate the following checkpoints: ", checkpoints)
         for checkpoint in checkpoints:
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
 
-            bert_model = model_class.from_pretrained(checkpoint)
-            bert_model.to(args.device)
-            model.load_state_dict(torch.load(os.path.join(args.output_dir, "bert_adapter_lstm.model")))
-            result, _ = evaluate(args, bert_model, model, tokenizer, labels, pad_token_label_id, mode="dev", prefix=global_step)
+            model = model_class.from_pretrained(checkpoint)
+            model.to(args.device)
+            
+            result, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev", prefix=global_step)
             if global_step:
                 result = {"{}_{}".format(global_step, k): v for k, v in result.items()}
             results.update(result)
@@ -697,10 +693,9 @@ def main():
 
     if args.do_predict and args.local_rank in [-1, 0]:
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
-        bert_model = model_class.from_pretrained(args.output_dir)
-        bert_model.to(args.device)
-        model.load_state_dict(torch.load(os.path.join(args.output_dir, "bert_lstm.model")))
-        result, predictions = evaluate(args, bert_model, model, tokenizer, labels, pad_token_label_id, mode="test")
+        model = model_class.from_pretrained(args.output_dir)
+        model.to(args.device)
+        result, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="test")
         # Save results
         output_test_results_file = os.path.join(args.output_dir, args.test_result_file)
         with open(output_test_results_file, "w") as writer:
