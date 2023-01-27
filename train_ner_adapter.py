@@ -70,7 +70,6 @@ def set_seed(args):
         torch.cuda.manual_seed_all(args.seed)
 
 def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, adapter_name):
-    model.set_active_adapters(adapter_name)
     model.train_adapter(adapter_name)
     """ Train the model """
     loss_fct = torch.nn.CrossEntropyLoss()
@@ -242,7 +241,6 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, ada
 
 
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
-    model.set_active_adapters([["ner"]])
     eval_dataset = load_and_cache_examples(args, tokenizer, labels, pad_token_label_id, mode=mode)
 
     loss_fct = torch.nn.CrossEntropyLoss()
@@ -608,7 +606,8 @@ def main():
     
     model = model_class.from_pretrained(args.model_name_or_path)
     adapter_name = model.load_adapter(args.path_to_adapter)
-
+    model.set_active_adapters(adapter_name)
+    
     model.add_tagging_head("ner_head", num_labels=len(labels))
 
     tokenizer = tokenizer_class.from_pretrained(
