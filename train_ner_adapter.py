@@ -276,19 +276,12 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
             #outputs = model(**inputs)
             #tmp_eval_loss, logits = outputs[:2]
 
+            logits = model(inputs["input_ids"])['logits']#, attention_mask=inputs["attention_mask"], output_hidden_states=True)
 
-            hs = model(inputs["input_ids"], attention_mask=inputs["attention_mask"], output_hidden_states=True)
-
-            avg_emb = 0
-            for layer in range(1, len(hs.hidden_states)):
-                avg_emb += hs.hidden_states[layer]
-
-            avg_emb = torch.div(avg_emb, len(hs.hidden_states) - 1)
-
-            logits = model(avg_emb)
             active_loss = inputs["attention_mask"].view(-1) == 1
             active_logits = logits.view(-1, args.num_labels)
             active_labels = torch.where(
+
                 active_loss, inputs["labels"].view(-1), torch.tensor(loss_fct.ignore_index).type_as(inputs["labels"])
             )
             tmp_eval_loss = loss_fct(active_logits, active_labels)
