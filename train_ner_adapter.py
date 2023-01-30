@@ -672,9 +672,11 @@ def main():
         for checkpoint in checkpoints:
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
 
-            model = model_class.from_pretrained(checkpoint)
-            model.to(args.device)
+            #model = model_class.from_pretrained(checkpoint)
+            #model.set_active_adapters("mlm")
+            #model.to(args.device)
             
+            #print(model)
             result, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev", prefix=global_step)
             if global_step:
                 result = {"{}_{}".format(global_step, k): v for k, v in result.items()}
@@ -686,8 +688,9 @@ def main():
 
     if args.do_predict and args.local_rank in [-1, 0]:
         tokenizer = tokenizer_class.from_pretrained(args.output_dir, do_lower_case=args.do_lower_case)
-        model = model_class.from_pretrained(args.output_dir)
-        model.to(args.device)
+        #model = model_class.from_pretrained(args.output_dir)
+        #model.set_active_adapters("mlm")
+        #model.to(args.device)
         result, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="test")
         # Save results
         output_test_results_file = os.path.join(args.output_dir, args.test_result_file)
