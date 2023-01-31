@@ -199,7 +199,7 @@ class DataTrainingArguments:
             )
         },
     )
-    dataset_language: Optional[str] = field(
+    tags: Optional[str] = field(
         default=None,
         metadata={
             "help": (
@@ -238,7 +238,7 @@ def main():
     else:
         model_args, data_args, training_args, adapter_args = parser.parse_args_into_dataclasses()
 
-    wandb.init(project="training-lm-test-run", entity="double-bind-ner", tags=[data_args.dataset_language])
+    wandb.init(project="training-lm-test-run", entity="double-bind-ner", tags=data_args.tags.split(','))
 
     # Setup logging
     logging.basicConfig(
