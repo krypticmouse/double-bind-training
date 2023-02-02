@@ -312,14 +312,25 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
                 out_label_list[i].append(label_map[out_label_ids[i][j]])
                 preds_list[i].append(label_map[preds[i][j]])
 
-    results = {
-        "eval_loss": eval_loss,
-        "eval_precision": precision_score(out_label_list, preds_list),
-        "eval_recall": recall_score(out_label_list, preds_list),
-        "eval_f1": f1_score(out_label_list, preds_list),
-        'eval_report': classification_report(out_label_list, preds_list),
-    }
-
+    results = {}
+    if mode=="dev":
+        results = {
+            "eval_loss": eval_loss,
+            "eval_precision": precision_score(out_label_list, preds_list),
+            "eval_recall": recall_score(out_label_list, preds_list),
+            "eval_f1": f1_score(out_label_list, preds_list),
+            'eval_report': classification_report(out_label_list, preds_list),
+        }
+    
+    elif mode=="test":
+        results = {
+            "predict_loss": eval_loss,
+            "predict_precision": precision_score(out_label_list, preds_list),
+            "predict_recall": recall_score(out_label_list, preds_list),
+            "predict_f1": f1_score(out_label_list, preds_list),
+            'predict_report': classification_report(out_label_list, preds_list),
+        }
+    
     wandb.log(results)
 
     print(f"***** Eval results {prefix} *****")
@@ -602,7 +613,7 @@ def main():
     
     model.add_tagging_head("ner_head", num_labels=len(labels))
     print(model)
-    
+
     tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         # do_lower_case=args.do_lower_case,
