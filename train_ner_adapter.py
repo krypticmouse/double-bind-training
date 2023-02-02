@@ -528,17 +528,15 @@ def main():
 
     args = parser.parse_args()
     
-    wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=args.tags.split(','))
-
-    wandb.config = {
+    wandb.init(project="masakhane-ner-test-run", entity="double-bind-ner", tags=args.tags.split(','), config = {
         "max length": os.getenv('MAX_LENGTH'),
-        "adapter model": os.getenv('BERT_MODEL'),
+        "adapter model": os.getenv('ADAPTER_MODEL'),
         "output dir": os.getenv('OUTPUT_DIR'),
         "batch size": os.getenv('BATCH_SIZE'),
         "epochs": os.getenv('NUM_EPOCHS'),
         "save steps": os.getenv('SAVE_STEPS'),
         "seed": os.getenv('SEED'),
-    }
+    })
 
     if (
         os.path.exists(args.output_dir)
@@ -603,7 +601,8 @@ def main():
     model.set_active_adapters(adapter_name)
     
     model.add_tagging_head("ner_head", num_labels=len(labels))
-
+    print(model)
+    
     tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         # do_lower_case=args.do_lower_case,
