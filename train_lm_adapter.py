@@ -625,6 +625,10 @@ def main():
         train_result = trainer.train(resume_from_checkpoint=checkpoint)
 
         trainer.model.save_adapter(training_args.output_dir, task_name)  # Saves the tokenizer too for easy upload
+        
+        for i in os.listdir(training_args.output_dir):
+            wandb.save(f"{training_args.output_dir}/{i}", base_path = "/tmp")
+
         metrics = train_result.metrics
 
         max_train_samples = (
@@ -668,6 +672,7 @@ def main():
         trainer.create_model_card(**kwargs)
     
     print("LM_WANDB_RUN_NAME:", wandb.run.name)
+    wandb.finish(exit_code=0)
 
 if __name__ == "__main__":
     main()

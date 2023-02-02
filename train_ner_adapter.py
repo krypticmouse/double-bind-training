@@ -142,13 +142,13 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, ada
         print("  Continuing training from global step", global_step)
         print(f"  Will skip the first {steps_trained_in_current_epoch} steps in the first epoch")
 
-    tr_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
     train_iterator = trange(
         epochs_trained, int(args.num_train_epochs), desc="Epoch", disable=args.local_rank not in [-1, 0]
     )
     set_seed(args)  # Added here for reproductibility
     for _ in train_iterator:
+        tr_loss, logging_loss = 0.0, 0.0
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
 
@@ -215,7 +215,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, ada
 
                     # Good practice: save your training arguments together with the trained model
                     torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
-
+                    
+                    
                     print("Saving model checkpoint to ", output_dir)
 
                     torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
@@ -226,7 +227,9 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, ada
                 epoch_iterator.close()
                 break
         
-
+        for i in os.listdir(args.output_dir):
+            wandb.save(f"{args.output_dir}/{i}")
+        
         wandb.log({
             f"lr": scheduler.get_lr()[0],
             f"train_loss": tr_loss / args.logging_steps
@@ -722,11 +725,9 @@ def main():
                         writer.write(output_line)
                     else:
                         logger.warning("Maximum sequence length exceeded: No prediction for '%s'.", line.split()[0])
-
+    
+    wandb.finish(exit_code=0)
     return results
-
-
-
 
 if __name__ == "__main__":
     main()
