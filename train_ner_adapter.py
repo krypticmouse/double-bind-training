@@ -70,7 +70,8 @@ def set_seed(args):
         torch.cuda.manual_seed_all(args.seed)
 
 def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, adapter_name):
-    model.train_adapter(adapter_name)
+    if args.train_adapter:
+        model.train_adapter(adapter_name)
     """ Train the model """
     loss_fct = torch.nn.CrossEntropyLoss()
 
@@ -539,6 +540,7 @@ def main():
     parser.add_argument("--server_port", type=str, default="", help="For distant debugging.")
     parser.add_argument("--tags", type=str, default="", help="Set the tag for wandb project run.")
     parser.add_argument("--path_to_adapter", type=str, help="Directory containing path to adapter.")
+    parser.add_argument("--train_adapter", type=bool, help="Whether to train lm adapter or retrain baseline.")
 
     args = parser.parse_args()
     
@@ -611,9 +613,11 @@ def main():
     config_class, model_class, tokenizer_class = AutoConfig, AutoAdapterModel, AutoTokenizer #MODEL_CLASSES[args.model_type]
     
     model = model_class.from_pretrained(args.model_name_or_path)
-    adapter_name = model.load_adapter(args.path_to_adapter)
-    model.set_active_adapters(adapter_name)
     
+    if args.train_adapter:
+        adapter_name = model.load_adapter(args.path_to_adapter)
+        model.set_active_adapters(adapter_name)
+        
     model.add_tagging_head("ner_head", num_labels=len(labels))
     print(model)
 
