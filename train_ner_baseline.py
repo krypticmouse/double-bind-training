@@ -120,6 +120,10 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True
         )
 
+    # Create args.output_dir
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
     # Train!
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
@@ -180,8 +184,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
-                scheduler.step()  # Update learning rate schedule
                 optimizer.step()
+                scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
                 
@@ -191,15 +195,14 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                             args.local_rank == -1 and args.evaluate_during_training
                     ):  # Only evaluate when single GPU otherwise metrics may not average well
                         results, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev")
+                        max_f1 = results['eval_f1'] if results['eval_f1'] > max_f1 else max_f1
                         for key, value in results.items():
-                            wandb.log({f"eval_{key}": value})
+                            wandb.log(f"{key}: {value}")
                     logging_loss = tr_loss
 
                 if args.local_rank in [-1, 0] and args.save_steps > 0 and global_step % args.save_steps == 0:
                     # Save model checkpoint
                     output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
-                    if not os.path.exists(output_dir):
-                        os.makedirs(output_dir)
 
                     model_to_save = (
                         model.module if hasattr(model, "module") else model
@@ -213,6 +216,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                     
                     
                     print("Saving model checkpoint to ", output_dir)
+                    model_saved=True
 
                     torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                     torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
@@ -235,7 +239,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     for i in os.listdir(args.output_dir):
         wandb.save(f"{args.output_dir}/{i}")
 
-    return global_step, tr_loss / global_step
+    return global_step, tr_loss / global_step, max_f1, model_saved
 
 
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix="", print_result=True):
@@ -626,7 +630,7 @@ def main():
         f1_step = 0.0
         if args.n_gpu == 1:
             eval_results, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev", print_result=False)
-            f1_step = round(eval_results["f1"], 5)
+            f1_step = round(eval_results["eval_f1"], 5)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Fine-tuning
@@ -641,7 +645,7 @@ def main():
         f1_step = 0.0
         if args.n_gpu == 1:
             eval_results, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev", print_result=False)
-            f1_step = round(eval_results["f1"], 5)
+            f1_step = round(eval_results["eval_f1"], 5)
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
