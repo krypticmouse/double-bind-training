@@ -226,7 +226,27 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id, ada
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
-    
+
+        output_dir = os.path.join(args.output_dir, "checkpoint-{}".format(global_step))
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        model_to_save = (
+            model.module if hasattr(model, "module") else model
+        )
+
+        model_to_save.save_pretrained(args.output_dir)
+        tokenizer.save_pretrained(args.output_dir)
+
+        # Good practice: save your training arguments together with the trained model
+        torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
+        
+        
+        print("Saving model checkpoint to ", output_dir)
+
+        torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+        torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+        print("Saving optimizer and scheduler states to", output_dir)
         print("training loss", tr_loss / args.logging_steps)
         wandb.log({
             f"lr": scheduler.get_lr()[0],
