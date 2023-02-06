@@ -190,7 +190,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
         # EVALUATE + SELECT BEST MODEL WITH BEST VALIDATION ACCURACY
         #if (args.local_rank == -1 and args.evaluate_during_training):
-        if args.n_gpu ==1 and global_step > 500:  # and global_step % args.save_steps == 0:
+        if args.n_gpu ==1 and global_step > 400:  # and global_step % args.save_steps == 0:
             eval_results, _ = evaluate(args, model, tokenizer, labels, pad_token_label_id, mode="dev", print_result=False)
             f1_step = round(eval_results["f1"], 5)
             eval_fones.append(f1_step)
